@@ -57,7 +57,7 @@ async function postRandomMovie() {
   const providerTags = providers.length > 0
     ? providers.map((p) => toHashtag(p.provider_name)).join(' ')
     : 'N/A';
-  const tweetText = `🎥 ${randomMovie.title} (${randomMovie.release_date.split('-')[0]})\n⭐ ${randomMovie.vote_average}/10\n${randomMovie.overview}\n\n🎭 Cast\n${castTags}\n\n🎬 Director\n${directorTags}\n\n📺 Platforms\n${providerTags}\n\n#MovieMates`;
+  const tweetText = `🎥 ${randomMovie.title} (${randomMovie.release_date.split('-')[0]})\n⭐ ${randomMovie.vote_average.toFixed(1)}/10\n${randomMovie.overview}\n\n🎭 Cast\n${castTags}\n\n🎬 Director\n${directorTags}\n\n📺 Platforms\n${providerTags}\n\n#MovieMates`;
 
   const tweetPayload = {};
   const mediaIds = [];
