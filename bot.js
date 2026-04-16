@@ -1,6 +1,21 @@
 require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
 const axios = require('axios');
 const { TwitterApi } = require('twitter-api-v2');
+
+const POSTED_FILE = path.join(__dirname, 'posted.json');
+
+function getPostedMovies() {
+  if (!fs.existsSync(POSTED_FILE)) return [];
+  return JSON.parse(fs.readFileSync(POSTED_FILE, 'utf-8'));
+}
+
+function savePostedMovie(id, title) {
+  const movies = getPostedMovies();
+  movies.push({ id, title });
+  fs.writeFileSync(POSTED_FILE, JSON.stringify(movies, null, 2));
+}
 
 const client = new TwitterApi({
   appKey: process.env.X_CONSUMER_KEY,
@@ -49,7 +64,14 @@ async function getWatchProviders(movieId) {
 
 async function postRandomMovie() {
   const movies = await getHighRatedMovies();
-  const randomMovie = movies[Math.floor(Math.random() * movies.length)];
+  const postedMovies = getPostedMovies();
+  const postedIds = postedMovies.map((m) => m.id);
+  const available = movies.filter((m) => !postedIds.includes(m.id));
+  if (available.length === 0) {
+    console.log('All movies have been posted already.');
+    return;
+  }
+  const randomMovie = available[Math.floor(Math.random() * available.length)];
   const { cast, directors } = await getCredits(randomMovie.id);
   const providers = await getWatchProviders(randomMovie.id);
   const castTags = cast.map((p) => toHashtag(p.name)).join(' ');
@@ -78,6 +100,7 @@ async function postRandomMovie() {
   }
 
   await rwClient.v2.tweet(tweetText, tweetPayload);
+  savePostedMovie(randomMovie.id, randomMovie.title);
   console.log('Tweet posted:', tweetText);
 }
 
