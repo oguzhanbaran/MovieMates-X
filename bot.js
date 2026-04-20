@@ -27,9 +27,16 @@ const client = new TwitterApi({
 const rwClient = client.readWrite;
 
 async function getHighRatedMovies() {
-  const url = `https://api.themoviedb.org/3/discover/movie?api_key=${process.env.TMDB_API_KEY}&sort_by=vote_average.desc&vote_count.gte=1000&vote_average.gte=7`;
-  const response = await axios.get(url);
-  return response.data.results;
+  const totalPages = 5;
+  let allMovies = [];
+
+  for (let page = 1; page <= totalPages; page++) {
+    const url = `https://api.themoviedb.org/3/discover/movie?api_key=${process.env.TMDB_API_KEY}&sort_by=vote_count.desc&vote_average.gte=7&page=${page}`;
+    const response = await axios.get(url);
+    allMovies = allMovies.concat(response.data.results);
+  }
+
+  return allMovies;
 }
 
 async function getCredits(movieId) {
