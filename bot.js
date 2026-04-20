@@ -39,6 +39,20 @@ async function getHighRatedMovies() {
   return allMovies;
 }
 
+const GENRE_MAP = {
+  28: 'Action', 12: 'Adventure', 16: 'Animation', 35: 'Comedy',
+  80: 'Crime', 99: 'Documentary', 18: 'Drama', 10751: 'Family',
+  14: 'Fantasy', 36: 'History', 27: 'Horror', 10402: 'Music',
+  9648: 'Mystery', 10749: 'Romance', 878: 'Sci-Fi', 10770: 'TV Movie',
+  53: 'Thriller', 10752: 'War', 37: 'Western',
+};
+
+async function getMovieDetails(movieId) {
+  const url = `https://api.themoviedb.org/3/movie/${movieId}?api_key=${process.env.TMDB_API_KEY}`;
+  const response = await axios.get(url);
+  return response.data;
+}
+
 async function getCredits(movieId) {
   const url = `https://api.themoviedb.org/3/movie/${movieId}/credits?api_key=${process.env.TMDB_API_KEY}`;
   const response = await axios.get(url);
@@ -79,14 +93,21 @@ async function postRandomMovie() {
     return;
   }
   const randomMovie = available[Math.floor(Math.random() * available.length)];
-  const { cast, directors } = await getCredits(randomMovie.id);
-  const providers = await getWatchProviders(randomMovie.id);
+  const [{ cast, directors }, providers, details] = await Promise.all([
+    getCredits(randomMovie.id),
+    getWatchProviders(randomMovie.id),
+    getMovieDetails(randomMovie.id),
+  ]);
+  const genres = randomMovie.genre_ids.map((id) => GENRE_MAP[id]).filter(Boolean).join(' | ');
+  const hours = Math.floor(details.runtime / 60);
+  const mins = details.runtime % 60;
+  const runtime = `${hours}h ${mins}m`;
   const castTags = cast.map((p) => toHashtag(p.name)).join(' ');
   const directorTags = directors.map((p) => toHashtag(p.name)).join(' ');
   const providerTags = providers.length > 0
     ? providers.map((p) => toHashtag(p.provider_name)).join(' ')
     : 'N/A';
-  const tweetText = `🎥 ${randomMovie.title} (${randomMovie.release_date.split('-')[0]})\n⭐ ${randomMovie.vote_average.toFixed(1)}/10\n${randomMovie.overview}\n\n🎭 Cast\n${castTags}\n\n🎬 Director\n${directorTags}\n\n📺 Platforms\n${providerTags}\n\n#MovieMates`;
+  const tweetText = `🎥 ${randomMovie.title} (${randomMovie.release_date.split('-')[0]})\n⭐ ${randomMovie.vote_average.toFixed(1)}/10\n🎞️ ${genres}\n⏱️ ${runtime}\n${randomMovie.overview}\n\n🎭 Cast\n${castTags}\n\n🎬 Director\n${directorTags}\n\n📺 Platforms\n${providerTags}\n\n#MovieMates`;
 
   const tweetPayload = {};
   const mediaIds = [];
