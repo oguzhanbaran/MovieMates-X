@@ -133,7 +133,17 @@ async function postRandomMovie() {
   console.log('Tweet posted:', tweetText);
 }
 
-postRandomMovie().catch((err) => {
+async function main() {
+  const jitterMaxMin = Number(process.env.JITTER_MAX_MIN ?? 30);
+  if (jitterMaxMin > 0) {
+    const jitterMs = Math.floor(Math.random() * jitterMaxMin * 60 * 1000);
+    console.log(`Jitter: sleeping ${Math.round(jitterMs / 1000)}s before posting...`);
+    await new Promise((r) => setTimeout(r, jitterMs));
+  }
+  await postRandomMovie();
+}
+
+main().catch((err) => {
   console.error('Failed to post:', err);
   process.exit(1);
 });
