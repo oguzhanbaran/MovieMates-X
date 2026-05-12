@@ -103,12 +103,13 @@ async function postRandomMovie() {
   const mins = details.runtime % 60;
   const runtime = `${hours}h ${mins}m`;
   const overview = details.overview || randomMovie.overview;
-  const castTags = cast.map((p) => toHashtag(p.name)).join(' ');
-  const directorTags = directors.map((p) => toHashtag(p.name)).join(' ');
-  const providerTags = providers.length > 0
-    ? providers.map((p) => toHashtag(p.provider_name)).join(' ')
+  const castNames = cast.map((p) => p.name).join(', ');
+  const directorNames = directors.map((p) => p.name).join(', ');
+  const providerNames = providers.length > 0
+    ? providers.map((p) => p.provider_name).join(', ')
     : 'None';
-  const tweetText = `🎥 ${randomMovie.title} (${randomMovie.release_date.split('-')[0]})\n⭐ ${randomMovie.vote_average.toFixed(1)}/10\n🎞️ ${genres}\n⏱️ ${runtime}\n${overview}\n\n🎭 Cast\n${castTags}\n\n🎬 Director\n${directorTags}\n\n📺 Platforms\n${providerTags}\n\n#MovieMates`;
+  const titleTag = toHashtag(randomMovie.title);
+  const tweetText = `🎥 ${randomMovie.title} (${randomMovie.release_date.split('-')[0]})\n⭐ ${randomMovie.vote_average.toFixed(1)}/10\n🎞️ ${genres}\n⏱️ ${runtime}\n${overview}\n\n🎭 Cast\n${castNames}\n\n🎬 Director\n${directorNames}\n\n📺 Platforms\n${providerNames}\n\n${titleTag} #MovieMates`;
 
   const tweetPayload = {};
   const mediaIds = [];
