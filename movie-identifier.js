@@ -253,6 +253,32 @@ async function searchTitle(query, type = 'movie') {
   return res.data.results[0];
 }
 
+async function searchMulti(query, n = 3) {
+  const params = new URLSearchParams({
+    api_key: TMDB_API_KEY,
+    query,
+    language: 'en-US',
+    include_adult: 'false',
+  });
+  const res = await axios.get(`https://api.themoviedb.org/3/search/multi?${params}`);
+  return (res.data.results || [])
+    .filter((r) => r.media_type === 'movie' || r.media_type === 'tv')
+    .slice(0, n);
+}
+
+function tmdbResultToCandidate(r) {
+  const isTv = r.media_type === 'tv';
+  const dateStr = (isTv ? r.first_air_date : r.release_date) || '';
+  const year = dateStr ? Number(dateStr.split('-')[0]) : null;
+  return {
+    title: isTv ? r.name : r.title,
+    year: Number.isFinite(year) ? year : null,
+    type: isTv ? 'tv' : 'movie',
+    confidence: null,
+    tmdb: r,
+  };
+}
+
 async function getDetails(id, type) {
   const url = `https://api.themoviedb.org/3/${type}/${id}?api_key=${TMDB_API_KEY}&language=en-US`;
   return (await axios.get(url)).data;
@@ -347,16 +373,53 @@ async function buildTweetText(searchResult, type = 'movie') {
   return `${pickAdLine()}\n\n${icon} ${typeLabel}: ${title} (${yearStr})\n⭐ ${rating}/10\n🎞️ ${genres}\n⏱️ ${lengthStr}\n${overview}\n\n🎭 Cast\n${castTags}\n\n🎬 ${creatorLabel}\n${creatorTags}\n\n📺 Platforms\n${providerTags}\n\n#MovieMates`;
 }
 
+async function showPicker(chatId, candidates) {
+  const sessionId = Math.random().toString(36).slice(2, 10);
+  pendingPicks.set(sessionId, { candidates, expiresAt: Date.now() + PICK_TTL });
+  const buttons = candidates.map((c, i) => {
+    const typeLabel = c.type === 'tv' ? 'Dizi' : 'Film';
+    const yearStr = c.year ? ` (${c.year})` : '';
+    const confStr = c.confidence != null ? ` — %${c.confidence}` : '';
+    return [{
+      text: `${c.title}${yearStr} — ${typeLabel}${confStr}`,
+      callback_data: `pick:${sessionId}:${i}`,
+    }];
+  });
+  await tg('sendMessage', {
+    chat_id: chatId,
+    text: '🎬 Bunlardan hangisi?',
+    reply_markup: { inline_keyboard: buttons },
+  });
+}
+
 async function handleMessage(message) {
   const chatId = message.chat.id;
   if (String(chatId) !== ALLOWED_CHAT_ID) {
     console.log('Ignored message from unauthorized chat:', chatId);
     return;
   }
-  const text = message.text || message.caption || '';
+  const text = (message.text || message.caption || '').trim();
   const tweetId = extractTweetId(text);
+
   if (!tweetId) {
-    await sendMessage(chatId, 'Send a tweet link (twitter.com or x.com).');
+    if (text.length < 2) {
+      await sendMessage(chatId, 'Send a tweet link or a movie/series title.');
+      return;
+    }
+    await sendMessage(chatId, '🔎 Searching...');
+    let results;
+    try {
+      results = await searchMulti(text);
+    } catch (e) {
+      console.error('Multi search failed:', e.message);
+      await sendMessage(chatId, `Search failed: ${e.message}`);
+      return;
+    }
+    if (results.length === 0) {
+      await sendMessage(chatId, '❌ Not found on TMDB.');
+      return;
+    }
+    await showPicker(chatId, results.map(tmdbResultToCandidate));
     return;
   }
 
@@ -409,24 +472,7 @@ async function handleMessage(message) {
     return;
   }
 
-  const sessionId = Math.random().toString(36).slice(2, 10);
-  pendingPicks.set(sessionId, { candidates: validated, expiresAt: Date.now() + PICK_TTL });
-
-  const buttons = validated.map((c, i) => {
-    const typeLabel = c.type === 'tv' ? 'Dizi' : 'Film';
-    const yearStr = c.year ? ` (${c.year})` : '';
-    const confStr = c.confidence != null ? ` — %${c.confidence}` : '';
-    return [{
-      text: `${c.title}${yearStr} — ${typeLabel}${confStr}`,
-      callback_data: `pick:${sessionId}:${i}`,
-    }];
-  });
-
-  await tg('sendMessage', {
-    chat_id: chatId,
-    text: '🎬 Hangi film? En olası 3 aday:',
-    reply_markup: { inline_keyboard: buttons },
-  });
+  await showPicker(chatId, validated);
 }
 
 async function handleCallback(cq) {
