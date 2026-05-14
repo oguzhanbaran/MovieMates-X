@@ -379,9 +379,9 @@ async function showPicker(chatId, candidates) {
   const buttons = candidates.map((c, i) => {
     const typeLabel = c.type === 'tv' ? 'Dizi' : 'Film';
     const yearStr = c.year ? ` (${c.year})` : '';
-    const confStr = c.confidence != null ? ` — %${c.confidence}` : '';
+    const confPrefix = c.confidence != null ? `%${c.confidence} — ` : '';
     return [{
-      text: `${c.title}${yearStr} — ${typeLabel}${confStr}`,
+      text: `${confPrefix}${c.title}${yearStr} — ${typeLabel}`,
       callback_data: `pick:${sessionId}:${i}`,
     }];
   });
